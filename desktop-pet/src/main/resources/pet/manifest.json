@@ -1,0 +1,448 @@
+{
+  "$schema": "internal://mermaid-desktop-pet/atlas-manifest/v1",
+  "canvas": {
+    "w": 391,
+    "h": 395,
+    "groundY": 370.78,
+    "faceCX": 191.21,
+    "faceWidth": 41.0
+  },
+  "grid": {
+    "cols": 12,
+    "padding": 4
+  },
+  "chain": {
+    "weights": {
+      "idle": 65,
+      "sleeping": 35
+    },
+    "sleepAfterIdleLoops": 3,
+    "note": "一轮播完按权重抽下一段；sleeping 也可由 idle 连播若干轮后自动进入。"
+  },
+  "note": "脸部为尺度锚（八态脸宽统一）；脚底线为垂直锚（dragging 例外，运行时由鼠标接管）；水平以脸心对齐。末帧为首帧副本，故每态帧数 = 源帧数 - 1，一轮无缝闭合。",
+  "states": [
+    {
+      "id": "idle",
+      "zh": "待机",
+      "semantic": "无任务陪伴",
+      "atlas": "pet-idle.atlas.png",
+      "cols": 12,
+      "rows": 6,
+      "fw": 315,
+      "fh": 383,
+      "cellX": 76,
+      "cellY": 0,
+      "contentOrigin": [
+        80,
+        4
+      ],
+      "chainEligible": true,
+      "frames": 62,
+      "fps": 12.0,
+      "srcFrames": 124,
+      "loop": true,
+      "closure": "silent",
+      "priority": 0,
+      "faceWidth": 85.0,
+      "faceWidthMedian": 79.0,
+      "faceWidthOut": 40.5,
+      "faceCenter": [
+        191.2,
+        176.5
+      ],
+      "headHeight": 194.3,
+      "scale": 0.508704,
+      "srcFps": 24.0,
+      "groundAligned": true,
+      "bbox": [
+        84.4,
+        16.3,
+        390.2,
+        390.2
+      ]
+    },
+    {
+      "id": "thinking",
+      "zh": "思考",
+      "semantic": "推理中",
+      "atlas": "pet-think.atlas.png",
+      "cols": 12,
+      "rows": 6,
+      "fw": 188,
+      "fh": 175,
+      "cellX": 105,
+      "cellY": 201,
+      "contentOrigin": [
+        109,
+        205
+      ],
+      "chainEligible": false,
+      "frames": 62,
+      "fps": 12.0,
+      "srcFrames": 124,
+      "loop": true,
+      "closure": "silent",
+      "priority": 1,
+      "faceWidth": 74.0,
+      "faceWidthMedian": 81.0,
+      "faceWidthOut": 42.0,
+      "faceCenter": [
+        191.2,
+        260.8
+      ],
+      "headHeight": 110.0,
+      "scale": 0.503538,
+      "srcFps": 24.0,
+      "groundAligned": true,
+      "bbox": [
+        114.0,
+        217.4,
+        292.8,
+        383.1
+      ]
+    },
+    {
+      "id": "calling_tool",
+      "zh": "调用工具",
+      "semantic": "执行外部能力，向外发送信号",
+      "atlas": "pet-tool.atlas.png",
+      "cols": 12,
+      "rows": 6,
+      "fw": 297,
+      "fh": 263,
+      "cellX": 94,
+      "cellY": 113,
+      "contentOrigin": [
+        98,
+        117
+      ],
+      "chainEligible": false,
+      "frames": 62,
+      "fps": 12.0,
+      "srcFrames": 124,
+      "loop": true,
+      "closure": "reciprocal",
+      "priority": 2,
+      "faceWidth": 79.0,
+      "faceWidthMedian": 76.0,
+      "faceWidthOut": 41.0,
+      "faceCenter": [
+        191.2,
+        183.1
+      ],
+      "headHeight": 187.7,
+      "scale": 0.528036,
+      "srcFps": 24.0,
+      "groundAligned": true,
+      "bbox": [
+        102.9,
+        129.1,
+        390.7,
+        383.1
+      ]
+    },
+    {
+      "id": "waiting",
+      "zh": "等待",
+      "semantic": "长任务在跑或等用户回应",
+      "atlas": "pet-wait.atlas.png",
+      "cols": 12,
+      "rows": 7,
+      "fw": 268,
+      "fh": 230,
+      "cellX": 75,
+      "cellY": 158,
+      "contentOrigin": [
+        79,
+        162
+      ],
+      "chainEligible": false,
+      "frames": 78,
+      "fps": 12.0,
+      "srcFrames": 158,
+      "loop": true,
+      "closure": "silent",
+      "priority": 1,
+      "faceWidth": 82.0,
+      "faceWidthMedian": 82.0,
+      "faceWidthOut": 41.0,
+      "faceCenter": [
+        191.2,
+        220.6
+      ],
+      "headHeight": 150.2,
+      "scale": 0.495775,
+      "srcFps": 24.0,
+      "groundAligned": true,
+      "bbox": [
+        83.6,
+        174.3,
+        342.8,
+        395.0
+      ]
+    },
+    {
+      "id": "complete",
+      "zh": "完成",
+      "semantic": "任务成功，全桌宠唯一允许爆发的正面情绪",
+      "atlas": "pet-done.atlas.png",
+      "cols": 12,
+      "rows": 6,
+      "fw": 373,
+      "fh": 356,
+      "cellX": 0,
+      "cellY": 37,
+      "contentOrigin": [
+        4,
+        41
+      ],
+      "chainEligible": false,
+      "frames": 62,
+      "fps": 12.0,
+      "srcFrames": 124,
+      "loop": true,
+      "closure": "silent",
+      "priority": 3,
+      "faceWidth": 91.0,
+      "faceWidthMedian": 87.0,
+      "faceWidthOut": 42.0,
+      "faceCenter": [
+        191.2,
+        203.0
+      ],
+      "headHeight": 167.7,
+      "scale": 0.475163,
+      "srcFps": 24.0,
+      "groundAligned": true,
+      "bbox": [
+        8.6,
+        53.8,
+        373.1,
+        401.1
+      ]
+    },
+    {
+      "id": "error",
+      "zh": "出错",
+      "semantic": "执行失败，可爱挫败而非负面惩罚",
+      "atlas": "pet-error.atlas.png",
+      "cols": 12,
+      "rows": 6,
+      "fw": 292,
+      "fh": 264,
+      "cellX": 85,
+      "cellY": 114,
+      "contentOrigin": [
+        89,
+        118
+      ],
+      "chainEligible": false,
+      "frames": 62,
+      "fps": 12.0,
+      "srcFrames": 124,
+      "loop": true,
+      "closure": "event",
+      "priority": 3,
+      "faceWidth": 81.0,
+      "faceWidthMedian": 77.0,
+      "faceWidthOut": 40.0,
+      "faceCenter": [
+        191.2,
+        189.7
+      ],
+      "headHeight": 181.1,
+      "scale": 0.524206,
+      "srcFps": 24.0,
+      "groundAligned": true,
+      "bbox": [
+        93.6,
+        129.9,
+        376.7,
+        385.2
+      ]
+    },
+    {
+      "id": "dragging",
+      "zh": "拖拽",
+      "semantic": "用户拖动窗口，物理响应",
+      "atlas": "pet-drag.atlas.png",
+      "cols": 12,
+      "rows": 6,
+      "fw": 313,
+      "fh": 323,
+      "cellX": 47,
+      "cellY": 72,
+      "contentOrigin": [
+        51,
+        76
+      ],
+      "chainEligible": false,
+      "frames": 62,
+      "fps": 12.0,
+      "srcFrames": 124,
+      "loop": true,
+      "closure": "silent",
+      "priority": 9,
+      "faceWidth": 65.0,
+      "faceWidthMedian": 82.0,
+      "faceWidthOut": 39.0,
+      "faceCenter": [
+        191.2,
+        192.5
+      ],
+      "headHeight": 181.3,
+      "scale": 0.534093,
+      "srcFps": 24.0,
+      "groundAligned": false,
+      "bbox": [
+        55.4,
+        88.7,
+        359.3,
+        402.2
+      ]
+    },
+    {
+      "id": "sleeping",
+      "zh": "休眠",
+      "semantic": "长时间无交互，休息或省电",
+      "atlas": "pet-sleep.atlas.png",
+      "cols": 12,
+      "rows": 8,
+      "fw": 283,
+      "fh": 229,
+      "cellX": 50,
+      "cellY": 154,
+      "contentOrigin": [
+        54,
+        158
+      ],
+      "chainEligible": true,
+      "frames": 96,
+      "fps": 12.0,
+      "srcFrames": 192,
+      "loop": true,
+      "closure": "silent",
+      "priority": 0,
+      "faceWidth": 72.0,
+      "faceWidthMedian": 70.0,
+      "faceWidthOut": 41.0,
+      "faceCenter": [
+        191.2,
+        216.9
+      ],
+      "headHeight": 153.9,
+      "scale": 0.589732,
+      "srcFps": 24.0,
+      "groundAligned": true,
+      "bbox": [
+        58.1,
+        170.2,
+        332.4,
+        390.1
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "from": "idle",
+      "to": "thinking",
+      "ms": 250,
+      "strategy": "continue",
+      "effect": "站立悬浮中直接收腿盘起，前倾托腮"
+    },
+    {
+      "from": "thinking",
+      "to": "calling_tool",
+      "ms": 300,
+      "strategy": "continue",
+      "effect": "托腮的手放下抓起剑，身前浮出法阵"
+    },
+    {
+      "from": "calling_tool",
+      "to": "complete",
+      "ms": 150,
+      "strategy": "continue",
+      "effect": "剑停住、法阵缩回 → 右臂高举欢呼挺身"
+    },
+    {
+      "from": "calling_tool",
+      "to": "error",
+      "ms": 180,
+      "strategy": "arrayMask",
+      "effect": "法阵失控炸散的过程本身遮住跳变"
+    },
+    {
+      "from": "error",
+      "to": "thinking",
+      "ms": 400,
+      "strategy": "continue",
+      "effect": "重建完成后顺势收腿盘起"
+    },
+    {
+      "from": "complete",
+      "to": "idle",
+      "ms": 400,
+      "strategy": "bodyMask",
+      "effect": "落地后顺势甩身转头，一拍运动模糊"
+    },
+    {
+      "from": "error",
+      "to": "idle",
+      "ms": 400,
+      "strategy": "bodyMask",
+      "effect": "甩尾 + 转头甩发，一拍运动模糊"
+    },
+    {
+      "from": "any",
+      "to": "dragging",
+      "ms": 120,
+      "strategy": "hard",
+      "effect": "物理优先，不做过渡"
+    },
+    {
+      "from": "dragging",
+      "to": "idle",
+      "ms": 300,
+      "strategy": "continue",
+      "effect": "落地屈膝 + 甩头发"
+    },
+    {
+      "from": "idle",
+      "to": "waiting",
+      "ms": 250,
+      "strategy": "bodyMask",
+      "effect": "转身蜷起抱膝，甩发遮住"
+    },
+    {
+      "from": "waiting",
+      "to": "idle",
+      "ms": 250,
+      "strategy": "bodyMask",
+      "effect": "展开身体甩身站起"
+    },
+    {
+      "from": "idle",
+      "to": "sleeping",
+      "ms": 800,
+      "strategy": "continue",
+      "effect": "躺下，亮度同步降低"
+    },
+    {
+      "from": "sleeping",
+      "to": "idle",
+      "ms": 300,
+      "strategy": "continue",
+      "effect": "拉伸起身 + 眨眼"
+    }
+  ],
+  "priorityOrder": [
+    "dragging",
+    "complete",
+    "error",
+    "calling_tool",
+    "thinking",
+    "waiting",
+    "idle",
+    "sleeping"
+  ]
+}

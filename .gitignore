@@ -1,0 +1,38 @@
+# Java / Maven
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/
+dependency-reduced-pom.xml
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 管线中间产物与素材（不入库）
+work/
+assets/alpha-webm/
+pipeline/tmp/
+pipeline/dev/__pycache__/
+
+# 插件打包产物
+*.tgz
+
+# 日志
+*.log

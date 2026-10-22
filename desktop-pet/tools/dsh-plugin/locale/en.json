@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Pet Work Status",
+    "description": "Aggregates DSH session events into desktop-pet work-status tiers and serves them over a local HTTP contract."
+  }
+}

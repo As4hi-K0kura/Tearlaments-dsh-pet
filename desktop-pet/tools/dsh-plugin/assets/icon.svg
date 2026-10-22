@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="dsh-pet-status">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b6fb8"/>
+      <stop offset="1" stop-color="#0d3f70"/>
+    </linearGradient>
+    <linearGradient id="fin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7fe7e0"/>
+      <stop offset="1" stop-color="#38b6c9"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="url(#bg)"/>
+
+  <!-- 鱼尾 -->
+  <path d="M30 30 C22 30 16 36 13 44 C19 45 25 44 29 40 Z" fill="url(#fin)" opacity="0.95"/>
+  <path d="M30 38 C24 40 20 45 18 50 C23 49 28 46 31 42 Z" fill="url(#fin)" opacity="0.75"/>
+
+  <!-- 身体 -->
+  <path d="M30 30 C30 24 36 20 44 20 C51 20 55 24 55 29 C55 34 51 38 44 38 C36 38 30 35 30 30 Z" fill="#ffd9b3"/>
+
+  <!-- 背鳍 -->
+  <path d="M38 21 C41 15 46 13 50 14 C48 19 44 22 39 22 Z" fill="url(#fin)"/>
+
+  <!-- 眼睛 -->
+  <circle cx="47" cy="27" r="2.6" fill="#20303f"/>
+  <circle cx="48" cy="26" r="0.9" fill="#ffffff"/>
+
+  <!-- 腮红 -->
+  <circle cx="41.5" cy="31" r="2.1" fill="#ff9d9d" opacity="0.75"/>
+
+  <!-- 状态气泡（右上角）：代表「工作状态档位」 -->
+  <circle cx="51" cy="13" r="7" fill="#ffffff" opacity="0.92"/>
+  <circle cx="49.5" cy="13" r="1.5" fill="#1b6fb8"/>
+  <circle cx="52.5" cy="13" r="1.5" fill="#1b6fb8"/>
+</svg>

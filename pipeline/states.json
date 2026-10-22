@@ -1,0 +1,298 @@
+{
+  "$schema": "internal://mermaid-desktop-pet/anim-script/v3",
+  "character": "mermaid-girl-chibi",
+  "form": "animated-desktop-pet",
+  "reference": "ref-mermaid.png",
+  "referenceNote": "仅作角色识别参考，不约束各状态构图与起始姿态",
+  "elementWhitelist": {
+    "allowed": [
+      "人鱼少女本人(身体/头/发/鳍耳/羽翼/双腿/头冠/眼/表情/衣着固有形态；身体方案=人形双腿、无鱼尾)",
+      "她的水晶剑(角色原有道具，可脱手可出画，出画必须飞回)",
+      "法阵(唯一允许引入的新增元素，由她自身产生、随动作生灭)",
+      "角色自身形变(身体散开/凝实、发光/黯淡，属她本人状态变化)"
+    ],
+    "forbidden": [
+      "任何独立于她存在、可被她坐上去或拿在手里的有形物体",
+      "座椅/坐具/抱枕/怀表/沙漏/海螺/贝壳/水母等任何道具与随行生物",
+      "水泡/气泡/计时水滴等任何可数的持续元素",
+      "星芒/水花/花瓣/呼噜泡等一次性效果粒子(从严)",
+      "服饰配件(披肩/花环/睡帽等)"
+    ],
+    "judgement": [
+      "问1: 它是否独立于她存在、能被她坐上去或拿在手里? 是则禁用",
+      "问2: 它是否从她身上随动作生灭、不具备独立存在性? 是则可用",
+      "灰区一律从严处理"
+    ]
+  },
+  "rules": {
+    "closureTypes": {
+      "silent": "静默闭合：末帧直接接首帧，无任何事件，观众察觉不到循环点",
+      "event": "事件闭合：接缝被设计成叙事事件(法阵炸散、自我重建)，循环点成为故事的一部分",
+      "reciprocal": "冲程闭合：接缝落在往复动作的反向前摇，像弹簧储能"
+    },
+    "globalAnchor": null,
+    "perStateStartPose": true,
+    "physicalRules": [
+      "惯性滞后：发丝/裙摆/鳍耳比身体晚 0.15-0.30s",
+      "速度归零：静默闭合与冲程闭合的接缝点必须落在速度最小处",
+      "相位连续：呼吸/翅膀相位在接缝处对齐",
+      "出画入画配对：飞出画面的剑必须在本循环内回来"
+    ],
+    "inertiaLagMs": { "wings": 150, "hair": 200, "skirt": 250, "fin_ears": 200 },
+    "switchStrategies": {
+      "continue": "动作接续：下一态首帧 = 上一态末帧的自然延续",
+      "bodyMask": "甩身遮蔽：她快速转身/甩发/甩尾，用这一拍的大幅运动加一帧运动模糊遮住姿态跳变",
+      "arrayMask": "法阵遮蔽：法阵炸散或生成的过程本身覆盖跳变",
+      "hard": "硬切：物理优先，不做过渡"
+    },
+    "priorityOrder": ["dragging", "complete", "error", "calling_tool", "thinking", "waiting", "idle", "sleeping"]
+  },
+  "invariants": ["发色渐变", "鳍耳", "羽翼渐变方向", "头冠蓝宝石", "剑在画面右侧", "角色本人为唯一主体", "身体方案=人形双腿、无鱼尾"],
+  "states": [
+    {
+      "id": "idle",
+      "label": "待机",
+      "semantic": "无任务陪伴",
+      "priority": 0,
+      "closure": "silent",
+      "loop": true,
+      "loopMs": 4000,
+      "fps": 30,
+      "frames": 120,
+      "startPose": "悬浮站立，双腿自然下垂并拢，左手(画面右侧)垂握水晶剑(剑尖朝右下)，右臂(画面左侧)放松微张，肩背放松，浅笑",
+      "props": ["sword"],
+      "fx": [],
+      "timeline": [
+        { "from": 0, "to": 700, "action": "蓄力", "pose": "身体微微下沉，肩膀耸起(吸气)，翅膀收紧" },
+        { "from": 700, "to": 1900, "action": "舒展", "pose": "身体升至 +12%，翅膀完全展开一次(60°)，左臂上抬举过头顶伸懒腰", "inertia": "hair 200ms, skirt 250ms" },
+        { "from": 1900, "to": 3100, "action": "环顾", "pose": "身体缓缓左转 20°，头跟着转、视线扫过四周，剑随身体画弧" },
+        { "from": 3100, "to": 3600, "action": "回头", "pose": "头先转回正面，身体后到(跟随延迟 100ms)" },
+        { "from": 3600, "to": 4000, "action": "定格", "pose": "眨眼一次，裙摆轻甩一次，鳍耳轻抖，呼出一口气(胸腔回落)" }
+      ],
+      "seam": { "atMs": 4000, "velocity": "zero", "note": "高度/朝向/翅膀开合角/眨眼与甩尾节奏全部回到 0ms" },
+      "anchor": "站立悬浮 + 伸懒腰 + 环顾；身体的舒展感即待机的表情",
+      "layers": ["body", "wings", "hair_front", "hair_back", "skirt", "fin_ears", "sword"],
+      "assets": { "key": "keys/pet-idle", "fx": [] }
+    },
+    {
+      "id": "thinking",
+      "label": "思考",
+      "semantic": "推理中",
+      "priority": 1,
+      "closure": "silent",
+      "loop": true,
+      "loopMs": 5000,
+      "fps": 30,
+      "frames": 150,
+      "startPose": "悬浮盘腿(在空中盘腿而坐)，身体前倾，双手托腮，睁眼且视线朝左上(循环起止帧取睁眼态)，双腿盘在身前",
+      "props": ["sword"],
+      "fx": [],
+      "timeline": [
+        { "from": 0, "to": 600, "action": "点颊", "pose": "睁眼，指尖轻点下颌 1 下，视线向左上，肩膀随呼吸微抬，指尖在膝上轻点" },
+        { "from": 600, "to": 1800, "action": "敲节拍", "pose": "视线保持左上，手指在膝上敲节拍(哒-哒-哒)，另一只手的指尖随节拍轻点" },
+        { "from": 1800, "to": 3000, "action": "换思路", "pose": "闭眼转头向右，眼珠转右上，片刻后睁眼，托腮的手换成另一只，身体转 15°" },
+        { "from": 3000, "to": 4100, "action": "顿悟", "pose": "身体后仰，手掌拍向大腿，随即一挺，眼睛睁大，裙摆弹起" },
+        { "from": 4100, "to": 5000, "action": "收", "pose": "视线回左上(睁眼)，双手回到原来那只托腮，双腿盘好，姿态回起点" }
+      ],
+      "seam": { "atMs": 5000, "velocity": "zero", "note": "回到盘腿坐姿，双手回到同一只手，双腿盘回原位" },
+      "anchor": "盘腿 + 托腮 + 视线离开用户",
+      "layers": ["body", "wings", "hair_front", "hair_back", "skirt", "fin_ears", "sword"],
+      "assets": { "key": "keys/pet-think", "fx": [] }
+    },
+    {
+      "id": "calling_tool",
+      "label": "调用工具",
+      "semantic": "执行外部能力，向外发送信号",
+      "priority": 2,
+      "closure": "reciprocal",
+      "loop": true,
+      "loopMs": 2800,
+      "fps": 30,
+      "frames": 84,
+      "startPose": "站立悬浮，左手(画面右侧)持剑垂于身侧，右臂(画面左侧)前伸，身前浮现一枚缓慢自转的法阵",
+      "props": ["sword", "magic_array"],
+      "fx": ["fx/array-idle", "fx/array-charged", "fx/array-shockring"],
+      "timeline": [
+        { "from": 0, "to": 600, "action": "法阵加速", "pose": "字符浮现、自转加速，她后仰蓄力，剑抬至肩前" },
+        { "from": 600, "to": 1200, "action": "刺出", "pose": "右手持剑左手并上，双手前刺，剑尖对准法阵中心，身体前倾 15°" },
+        { "from": 1200, "to": 1900, "action": "灌入", "pose": "法阵骤亮并向前扩张一圈冲击环(法阵自身效果)，握剑手臂泛起光纹" },
+        { "from": 1900, "to": 2400, "action": "收", "pose": "法阵缩回一点，剑拉回身侧，身体回正" },
+        { "from": 2400, "to": 2800, "action": "回初始", "pose": "法阵恢复慢速自转，剑垂下，姿态与转速回到 0ms" }
+      ],
+      "seam": { "atMs": 2800, "velocity": "zero", "note": "位于蓄力前最低点(剑已归位、速度为零)，自然接上下一轮" },
+      "anchor": "法阵 + 刺剑 + 前倾；法阵是本态的存在证明，与 thinking 的唯一可靠区分",
+      "layers": ["body", "wings", "hair_front", "hair_back", "skirt", "fin_ears", "sword", "fx_array"],
+      "assets": { "key": "keys/pet-tool", "fx": ["fx/array-idle", "fx/array-charged", "fx/array-shockring"] },
+      "notes": "法阵必须有从她身上生成/消散的过程，突然出现会像贴纸。"
+    },
+    {
+      "id": "waiting",
+      "label": "等待",
+      "semantic": "长任务在跑或等用户回应",
+      "priority": 1,
+      "closure": "silent",
+      "loop": true,
+      "loopMs": 6000,
+      "fps": 30,
+      "frames": 180,
+      "startPose": "悬浮抱膝蜷成一团，右臂(画面左侧)搭在膝上、手背搁在膝盖，左手(画面右侧)垂下握剑、剑尖朝右下，双腿曲起环抱自己，眼睛半闭",
+      "props": ["sword"],
+      "fx": [],
+      "timeline": [
+        { "from": 0, "to": 1200, "action": "呆滞", "pose": "身体极缓左右微摆 ±2°，呼吸起伏，眼睛半睁、视线失焦" },
+        { "from": 1200, "to": 2400, "action": "犯困", "pose": "眼皮越来越沉，头一点一点往下垂" },
+        { "from": 2400, "to": 3000, "action": "惊醒", "pose": "猛地抬头，眨两下眼，甩头发(发丝大幅滞后甩动)" },
+        { "from": 3000, "to": 3900, "action": "打哈欠", "pose": "嘴张到极限、胸腔抬起、身体后仰 12° 再回弹" },
+        { "from": 3900, "to": 4800, "action": "揉眼", "pose": "用手背蹭眼睛，肩膀耸一下，鼻子皱一下" },
+        { "from": 4800, "to": 5500, "action": "又困", "pose": "头再次垂下，裙摆无力垂落，抱膝的手松了松" },
+        { "from": 5500, "to": 6000, "action": "强撑", "pose": "抬头，眼神重新聚焦，抱膝的手收紧，姿态回起点" }
+      ],
+      "seam": { "atMs": 6000, "velocity": "zero", "note": "回到抱膝姿态与头部抬起角，与 0ms 对齐" },
+      "anchor": "抱膝蜷缩 + 瞌睡点头 + 打哈欠；全靠身体信号辨识，不依赖任何外物",
+      "layers": ["body", "wings", "hair_front", "hair_back", "skirt", "fin_ears", "sword"],
+      "assets": { "key": "keys/pet-wait", "fx": [] }
+    },
+    {
+      "id": "complete",
+      "label": "完成",
+      "semantic": "任务成功，全桌宠唯一允许爆发的正面情绪",
+      "priority": 3,
+      "closure": "silent",
+      "loop": true,
+      "loopMs": 3400,
+      "fps": 30,
+      "frames": 102,
+      "startPose": "站立悬浮，右臂(画面左侧)高举过头张开手掌欢呼，左臂(画面右侧)垂下握剑，下巴微抬，眼神亮晶晶，笑出声",
+      "props": ["sword"],
+      "fx": [],
+      "timeline": [
+        { "from": 0, "to": 500, "action": "挺身", "pose": "深呼吸挺身，肩膀打开，剑在身侧轻晃" },
+        { "from": 500, "to": 1000, "action": "起跳", "pose": "剑举过头，跃起 30% 身高，翅膀全展，裙摆飞扬", "inertia": "hair 150ms" },
+        { "from": 1000, "to": 1700, "action": "空中转体", "pose": "空中转体 180°，星星眼，笑出声，翅膀拍合一次" },
+        { "from": 1700, "to": 2200, "action": "落地", "pose": "屈膝缓冲压扁 12%，头发裙摆滞后 300ms 甩落" },
+        { "from": 2200, "to": 2900, "action": "站稳", "pose": "伸展，翅膀收拢，星星眼渐变回普通笑眼" },
+        { "from": 2900, "to": 3400, "action": "回初始", "pose": "高举的右臂(画面左侧)落回肩侧，剑在左手(画面右侧)垂稳，挺胸，裙摆摇一下" }
+      ],
+      "seam": { "atMs": 3400, "velocity": "zero", "note": "回到起点姿态，星星眼已退完" },
+      "anchor": "跃起 + 空中转体 + 星星眼；全桌宠唯一的跳跃与唯一的高度变化",
+      "layers": ["body", "wings", "hair_front", "hair_back", "skirt", "fin_ears", "sword"],
+      "assets": { "key": "keys/pet-done", "fx": [] }
+    },
+    {
+      "id": "error",
+      "label": "出错",
+      "semantic": "执行失败，可爱挫败而非负面惩罚",
+      "priority": 3,
+      "closure": "event",
+      "loop": true,
+      "loopMs": 4600,
+      "fps": 30,
+      "frames": 138,
+      "startPose": "站立悬浮，右手(画面左侧)叉腰，下巴微抬，左手垂握剑于画面右侧，身姿挺拔，身前浮着一枚她自己的法阵正缓缓自转",
+      "props": ["sword", "magic_array"],
+      "fx": ["fx/array-shattered", "fx/array-rebuild"],
+      "timeline": [
+        { "from": 0, "to": 450, "action": "得意", "pose": "身体左右轻摆两下，裙摆随之晃，法阵正常旋转" },
+        { "from": 450, "to": 900, "action": "法阵失控", "pose": "字符乱转、由青转红、猛然炸散成碎片(炸散的是法阵)" },
+        { "from": 900, "to": 1700, "action": "慌乱", "pose": "身体被冲击推得后仰，双手在身前乱挥 4 次，剑脱手飞出画面右上角" },
+        { "from": 1700, "to": 2500, "action": "剑回", "pose": "剑从画外飞回啪地插在身侧，她定格愣住 0.4s" },
+        { "from": 2500, "to": 3500, "action": "沮丧", "pose": "叉腰的手垂下，肩膀垮，头低 15°，裙摆垂落，眼眶泛红，咬住嘴唇" },
+        { "from": 3500, "to": 4200, "action": "自我重建", "pose": "闭眼深吸气，身周重新浮起一枚小法阵，法阵旋转着聚拢气流，身体自下而上重新凝实(自身形变)" },
+        { "from": 4200, "to": 4600, "action": "回归", "pose": "小法阵缩入掌心消失，睁眼，重新叉腰挺胸，身姿再次挺拔" }
+      ],
+      "seam": { "atMs": 4600, "velocity": "zero", "note": "事件接缝：法阵失控→自我重建，4.60s 回到起点姿态", "needsSelfMorphKey": true },
+      "anchor": "法阵失控 + 剑脱手 + 沮丧 + 自我重建",
+      "layers": ["body", "wings", "hair_front", "hair_back", "skirt", "fin_ears", "sword", "fx_array"],
+      "assets": { "key": "keys/pet-error", "selfMorph": "keys/pet-error-rebuild", "fx": ["fx/array-shattered", "fx/array-rebuild"] },
+      "notes": "禁止哭嚎与愤怒红脸。"
+    },
+    {
+      "id": "dragging",
+      "label": "拖拽",
+      "semantic": "用户拖动窗口，物理响应",
+      "priority": 9,
+      "closure": "silent",
+      "loop": true,
+      "loopMs": 2400,
+      "fps": 30,
+      "frames": 72,
+      "startPose": "被用户拎住悬空，头发全部向上飘起(惯性)，双腿蜷起像被提起来的猫，翅膀半张，嘴张成小圆",
+      "props": ["sword"],
+      "fx": ["fx/lightband"],
+      "timeline": [
+        { "from": 0, "to": 250, "action": "被拎起", "pose": "身体竖向拉伸 8%，抓握的手滑脱，裙摆被甩到上方" },
+        { "from": 250, "to": 850, "action": "左摆", "pose": "摆到左极限 −20°，翅膀扑腾 2 下，嘴张圆" },
+        { "from": 850, "to": 1150, "action": "剑脱手", "pose": "剑被细光带拉住悬在下方晃动，眼神由惊转恼" },
+        { "from": 1150, "to": 1850, "action": "右摆", "pose": "摆到右极限 +20°，表情在恼与惊之间来回" },
+        { "from": 1850, "to": 2400, "action": "回中位", "pose": "摆回中位并过冲 3°，速度最小，头发裙摆甩尾" }
+      ],
+      "seam": { "atMs": 2400, "velocity": "min", "note": "闭合点位于摆动中位且速度最小，表情回到惊" },
+      "anchor": "整体悬空 + 头发向上飘",
+      "layers": ["body", "wings", "hair_front", "hair_back", "skirt", "fin_ears", "sword", "fx_lightband"],
+      "assets": { "key": "keys/pet-drag", "fx": ["fx/lightband"] },
+      "notes": "本循环只覆盖被拎着持续晃动；松手另切 300ms 落地动作(屈膝+甩头发)。头发必须向上飘。"
+    },
+    {
+      "id": "sleeping",
+      "label": "休眠",
+      "semantic": "长时间无交互，休息或省电",
+      "priority": 0,
+      "closure": "silent",
+      "loop": true,
+      "loopMs": 8000,
+      "fps": 30,
+      "frames": 240,
+      "startPose": "悬浮侧躺蜷缩，抱着她的水晶剑当枕头(横抱在怀里)，双手环住剑身，双腿蜷起，双眼闭合，脸颊泛红",
+      "props": ["sword"],
+      "fx": [],
+      "timeline": [
+        { "from": 0, "to": 1800, "action": "深睡呼吸", "pose": "胸腔起伏(2s 吸 2s 呼)，身体缩放 1.00↔1.03，翅膀微动" },
+        { "from": 1800, "to": 2800, "action": "翻身", "pose": "侧躺→抱膝，剑被抱到胸前，180° 大幅翻转，加速后减速" },
+        { "from": 2800, "to": 4200, "action": "抱膝续睡", "pose": "下巴搁在剑柄上，肩膀随呼吸起伏" },
+        { "from": 4200, "to": 5200, "action": "咂嘴", "pose": "咂嘴并轻轻哼一声" },
+        { "from": 5200, "to": 6200, "action": "翻回", "pose": "反向翻回侧躺，与 1800-2800 镜像，剑重新横抱回怀里" },
+        { "from": 6200, "to": 8000, "action": "回起点", "pose": "继续睡，呼吸相位与 0ms 对齐" }
+      ],
+      "seam": { "atMs": 8000, "velocity": "zero", "note": "回到侧躺抱剑姿态，呼吸相位对齐" },
+      "anchor": "闭眼 + 蜷抱剑 + 冷色调(降饱和 10%)；剑抱在怀里当枕头",
+      "layers": ["body", "wings", "hair_front", "hair_back", "skirt", "fin_ears", "sword"],
+      "assets": { "key": "keys/pet-sleep", "fx": [] },
+      "notes": "需真正的闭眼图层。唤醒动作(300ms 拉伸起身)不属于本循环。"
+    }
+  ],
+  "transitions": [
+    { "from": "idle", "to": "thinking", "ms": 250, "strategy": "continue", "effect": "站立悬浮中直接收腿盘起，前倾托腮" },
+    { "from": "thinking", "to": "calling_tool", "ms": 300, "strategy": "continue", "effect": "托腮的手放下抓起剑，身前浮出法阵" },
+    { "from": "calling_tool", "to": "complete", "ms": 150, "strategy": "continue", "effect": "剑停住、法阵缩回 → 右臂高举欢呼挺身" },
+    { "from": "calling_tool", "to": "error", "ms": 180, "strategy": "arrayMask", "effect": "法阵失控炸散的过程本身遮住跳变" },
+    { "from": "error", "to": "thinking", "ms": 400, "strategy": "continue", "effect": "重建完成后顺势收腿盘起" },
+    { "from": "complete", "to": "idle", "ms": 400, "strategy": "bodyMask", "effect": "落地后顺势甩身转头，一拍运动模糊" },
+    { "from": "error", "to": "idle", "ms": 400, "strategy": "bodyMask", "effect": "甩尾 + 转头甩发，一拍运动模糊" },
+    { "from": "any", "to": "dragging", "ms": 120, "strategy": "hard", "effect": "物理优先，不做过渡" },
+    { "from": "dragging", "to": "idle", "ms": 300, "strategy": "continue", "effect": "落地屈膝 + 甩头发" },
+    { "from": "idle", "to": "waiting", "ms": 250, "strategy": "bodyMask", "effect": "转身蜷起抱膝，甩发遮住" },
+    { "from": "waiting", "to": "idle", "ms": 250, "strategy": "bodyMask", "effect": "展开身体甩身站起" },
+    { "from": "idle", "to": "sleeping", "ms": 800, "strategy": "continue", "effect": "躺下，亮度同步降低" },
+    { "from": "sleeping", "to": "idle", "ms": 300, "strategy": "continue", "effect": "拉伸起身 + 眨眼" }
+  ],
+  "assets": {
+    "uniqueKeys": ["keys/pet-idle", "keys/pet-think", "keys/pet-tool", "keys/pet-wait", "keys/pet-done", "keys/pet-error", "keys/pet-drag", "keys/pet-sleep"],
+    "selfMorphKeys": ["keys/pet-error-rebuild"],
+    "arrayKeys": ["fx/array-idle", "fx/array-charged", "fx/array-shattered", "fx/array-rebuild"],
+    "lightband": "fx/lightband",
+    "layers": ["body", "wings", "hair_front", "hair_back", "skirt", "fin_ears", "sword"],
+    "noCostumeLayer": true,
+    "noPropLayer": true,
+    "removedFromV2": ["水母", "贝壳", "海螺", "怀表", "沙漏", "水泡", "气泡", "计时水滴", "披肩", "花环", "睡帽", "星芒", "水花", "花瓣", "呼噜泡"]
+  },
+  "pitfalls": [
+    "拖拽时头发下垂——惯性方向错，必须向上飘",
+    "偷偷加回道具(坐具/怀表/气泡)——判定标准见 elementWhitelist.judgement",
+    "出错态缺法阵——法阵炸散与重建是本态叙事支点，缺了就退化成普通静默闭合",
+    "甩身遮蔽幅度不够——幅度小于姿态跳变幅度就遮不住",
+    "闭合点速度不归零——静默闭合处顿挫",
+    "发丝没有滞后——整体平移感，贴纸感",
+    "法阵没有生成/消散过程——突然出现会像贴纸",
+    "休眠没有真正的闭眼图层——读成半睁"
+  ]
+}
