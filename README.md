@@ -7,7 +7,8 @@
 ![八态渲染对比](docs/images/八态渲染对比.png)
 
 - **桌宠本体**：JavaFX + 构建期 PNG 图集（`ImageView.setViewport()` 逐帧播放），透明背景、可拖拽、贴屏幕底、点击穿透。
-- **DSH 插件**（`dsh-pet-status`）：在 DSH **宿主进程内**监听 `session/event`，聚合成「工作状态档位」，按 `dsh-pet` 的契约对外提供本地 HTTP 接口，桌宠直接接入。
+- **DSH 插件**（`dsh-pet-status`）：在 DSH **宿主进程内**监听 `session/event`，聚合成「工作状态档位」，按 `dsh-pet` 的契约对外提供本地 HTTP 接口，桌宠直接接入；并兼当桌宠的**进程宿主**（装上即拉起、卸载即收掉、崩了重拉）。
+- **右键菜单**：状态点播 / 体型 / 点击穿透 / 锁定 / 退出（桌宠没有窗口边框也没有任务栏按钮，右键是唯一入口）。
 
 ---
 
@@ -133,6 +134,16 @@ $env:ELECTRON_RUN_AS_NODE='1'; $env:DSH_HOME="$env:USERPROFILE\.dsh"
 curl http://127.0.0.1:3080/dsh-pet-7340/debug
 ```
 
+**退出语义**：桌宠右键菜单的「退出」走 `Platform.exit()`，**退出码 0** —— 托管器据此判为
+「用户主动退出」，**不会**再把它拉起来；只有非 0 退出码 / 被信号杀死才算「崩了」，才走退避重拉。
+
+想手动停 / 起（不卸载插件）：
+
+```bash
+curl -X POST http://127.0.0.1:3080/dsh-pet-7340/pet/stop
+curl -X POST http://127.0.0.1:3080/dsh-pet-7340/pet/start
+```
+
 ### 4) 接入
 
 ```bash
@@ -140,6 +151,30 @@ java ... app.pet.PetApp --dsh
 ```
 
 桌宠会自动发现插件的端口（默认 **3080**），长轮询取档位并切态。
+
+---
+
+## 交互
+
+桌宠没有窗口边框、也不进任务栏（`WS_EX_TOOLWINDOW`），所以**右键菜单是唯一入口**：
+
+| 组 | 菜单项 |
+| --- | --- |
+| 状态点播 | 八态各一项（`待机 (idle)` … `休眠 (sleeping)`） |
+| 体型 | 紧凑 / 标准 / 加大（基准角色高度在启动时定死） |
+| 开关 | 切换点击穿透 / 锁定（冻结自动状态切换） |
+| 结束 | 退出（退出码 0 → 插件不再自动拉起） |
+
+**任务栏图标**：任务栏上桌宠那一格认的是 JavaFX 的 toolkit 窗口
+（`GlassToolkitWindowClass`），默认是那个灰蓝色机器人图标。改法是给舞台设图标：
+
+```java
+stage.getIcons().add(new Image("/pet/taskbar-icon.png"));
+```
+
+图标文件**不在仓库里**（默认那张是第三方卡面素材，不适合再分发）——
+自己放一张 256×256 的 PNG 到 `desktop-pet/src/main/resources/pet/taskbar-icon.png` 即可；
+没有它就静默沿用默认图标，桌宠照常工作。
 
 ---
 
@@ -266,6 +301,9 @@ PET_SRC_ALPHA=/path/to/alpha-webm python pipeline/build_atlas.py
 8. **判「桌宠还活着吗」要用活连接，不能用时间戳** —— 时间戳分不清「18 秒前还活着」和「18 秒前就已经死了」，宽限期一过就会误拉一只。
 9. **插件热重载会让模块级变量归零** —— 「最近见过桌宠」这种记忆放内存里，重载后就会双开；归属要落盘（`~/.dsh-pet/pet.lock.json`），且换手时改写 owner，旧实例才不会误杀桌宠。
 10. **Windows 上 PowerShell `Set-Content -Encoding UTF8` 会写 BOM** —— 插件读 JSON 直接 `JSON.parse` 会抛，配置解析失败必须打日志，不能静默。
+11. **`MouseEvent.isStillSincePress()` 不能当「按键还按着吗」用** —— 它对 `MOUSE_DRAGGED` 一律返回 false，拖拽会刚起来就被自己的兜底掐掉（~25ms）。要判就判 `GetAsyncKeyState(VK_LBUTTON)`。
+12. **任务栏上桌宠那一格不是舞台窗口** —— 舞台带 `WS_EX_TOOLWINDOW`，占着格子的其实是 JavaFX 的 toolkit 窗口；给舞台设 `getIcons()` 就能换（Windows 任务栏按进程分组取组内图标），不必自己发 `WM_SETICON`。
+13. **脚本化拖拽自测没有真实按键** —— `--driftest` / `--dshdrag` 不发真实鼠标事件，按键态判据会把它们误掐（连带让 e2e 的「拖拽期间档位更新被丢弃」断言失败）；给这类拖拽留一个 `syntheticDrag` 旁路。
 
 完整记录见 [`docs/设计说明.md`](docs/设计说明.md)。
 

@@ -64,6 +64,8 @@ install.bat
 | `/dsh-pet-7340/state` | GET | 长轮询取当前档位（`?since=<counter>&timeout=<ms>` 成对必填，≤10000ms） |
 | `/dsh-pet-7340/pose/report` | POST | 渲染端上报实况 `{x,y,facing}` |
 | `/dsh-pet-7340/work-status` | POST | 外部槽直接写档位（与 DSH 会话按序合并） |
+| `/dsh-pet-7340/pet/stop` | POST | **主动停掉**桌宠（不卸载插件） |
+| `/dsh-pet-7340/pet/start` | POST | **重新拉起**桌宠 |
 | `/dsh-pet-7340/debug` | GET | 调试快照（各会话档位、事件序号、上报记录） |
 
 默认端口 **3080**（被占用则顺延到 3081…）；可用环境变量 `DSH_PET_STATUS_PORT` 指定。
@@ -154,7 +156,24 @@ Windows 上 classpath / module-path 里的分号是**字面量**，照写即可�
 > `external` 模式下有个看门狗：连续 30s 没有活连接，就判定那个桌宠已经退出 → 转成 `spawned` 由插件接手拉起。
 > 桌宠是 8s 轮询一次，30s 足够宽松，不会误判。
 
-### 3.3 归属：锁文件
+### 3.3 退出语义：退出码 0 = 用户主动退出
+
+桌宠不进任务栏，用户手上没有「关掉它」的按钮 —— 右键菜单的「退出」是唯一入口。
+但插件这边也得有一手，否则「退出」之后 `autoRestart` 会把桌宠再拉回来。
+
+| 退出情况 | `code` / `signal` | 托管器的处理 |
+| --- | --- | --- |
+| 右键菜单「退出」 | `0` / 无 | **用户主动退出** → `mode='exited'`，不拉起 |
+| 崩溃 / 异常退出 | 非 0 / 有信号 | 崩了 → 按 `restartDelayMs` 退避重拉 |
+
+另外两条接口可以手动停 / 起（不卸载插件）：
+
+```bash
+curl -X POST http://127.0.0.1:3080/dsh-pet-7340/pet/stop    # 停掉桌宠，清锁文件
+curl -X POST http://127.0.0.1:3080/dsh-pet-7340/pet/start   # 再拉起来（已有桌宠连着就不重复拉）
+```
+
+### 3.4 归属：锁文件
 
 归属写在 `~/.dsh-pet/pet.lock.json`：
 
@@ -165,7 +184,7 @@ Windows 上 classpath / module-path 里的分号是**字面量**，照写即可�
 `owner` 是「插件实例」的身份（宿主 pid + 启动时刻）。换手时（插件热重载）新实例会改写 `owner`；
 旧实例 `dispose()` 时发现 `owner` 已经不属于自己，就**不杀**桌宠 —— 否则热重载会把桌宠误杀。
 
-### 3.4 看诊断
+### 3.5 看诊断
 
 ```
 GET http://127.0.0.1:3080/dsh-pet-7340/debug
@@ -179,6 +198,7 @@ GET http://127.0.0.1:3080/dsh-pet-7340/debug
     "mode": "spawned",
     "childPid": 17712,
     "owns": true,
+    "userStopped": false,
     "source": "pet-launch.json",
     "command": ["...java.exe", "..."],
     "autoRestart": true
@@ -211,8 +231,8 @@ node test.plugin.mjs
 node test.supervisor.mjs
 ```
 
-- `test.plugin.mjs`：用假的 `ctx` 跑一遍事件聚合与路由，11 项断言。
-- `test.supervisor.mjs`：跑一遍托管的四种场景（无配置 / 外部桌宠 / 自己拉起 / 接管），15 项断言。
+- `test.plugin.mjs`：用假的 `ctx` 跑一遍事件聚合与路由，12 项断言。
+- `test.supervisor.mjs`：跑一遍托管的各场景（无配置 / 外部桌宠 / 自己拉起 / 接管 / 退出码语义 / 主动停起），23 项断言。
   它用 `DSH_PET_LAUNCH_FILE` + 假的 `USERPROFILE` 隔离，不会碰到你真实的桌宠。
 
 （端口冲突时用 `DSH_PET_STATUS_PORT=3085` 换端口。）

@@ -326,6 +326,34 @@ export function apply(ctx) {
         return;
       }
 
+      if (sub === '/pet/stop' && req.method === 'POST') {
+        // 主动停掉桌宠（不卸载插件）。桌宠没进任务栏，用户手上没有关掉它的按钮，
+        // 这条接口是给「想让它先消失一会儿」用的；想让它回来打 /pet/start。
+        if (!supervisorRef) {
+          res.writeHead(409, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, reason: 'no-supervisor' }));
+          return;
+        }
+        const r = supervisorRef.stop();
+        console.log('[dsh-pet-status] 收到 /pet/stop，桌宠已停');
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(r));
+        return;
+      }
+
+      if (sub === '/pet/start' && req.method === 'POST') {
+        if (!supervisorRef) {
+          res.writeHead(409, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, reason: 'no-supervisor' }));
+          return;
+        }
+        const r = supervisorRef.start();
+        console.log('[dsh-pet-status] 收到 /pet/start，已请求拉起桌宠');
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(r));
+        return;
+      }
+
       if (sub === '/debug' && req.method === 'GET') {
         const seenAge = petSeenAgeMs();
         res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
@@ -343,6 +371,7 @@ export function apply(ctx) {
                   source: diag.supervisor.source,
                   childPid: supervisorRef.childPid,
                   owns: supervisorRef.owns,
+                  userStopped: supervisorRef.userStopped,
                   command: diag.supervisor.command,
                   autoRestart: diag.supervisor.autoRestart,
                 }

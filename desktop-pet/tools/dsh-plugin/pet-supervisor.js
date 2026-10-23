@@ -205,6 +205,7 @@ export function startPetSupervisor(cfg, opts = {}) {
 
   let child = null;
   let stopping = false;
+  let userStopped = false;
   let restartTimer = null;
   let decisionTimer = null;
   let watchdog = null;
@@ -276,14 +277,25 @@ export function startPetSupervisor(cfg, opts = {}) {
       child = null;
     });
     child.on('exit', (code, signal) => {
-      console.log(`[dsh-pet-status] 桌宠退出（code=${code} signal=${signal}）`);
+      // 退出语义：**退出码 0 且没有信号 = 用户主动退出**（右键菜单「退出」走的是 Platform.exit()），
+      // 这种不该被拉回来 —— 否则「退出」菜单项形同虚设，3 秒后桌宠又自己冒出来。
+      // 异常退出（非 0 退出码 / 被信号杀死）才当成「崩了」，按退避重拉。
+      const clean = code === 0 && !signal;
+      console.log(
+        `[dsh-pet-status] 桌宠退出（code=${code} signal=${signal}）` +
+          (clean ? ' → 正常退出（用户主动退出），不自动拉起' : ' → 异常退出'),
+      );
       const current = readLock();
       if (current && Number(current.pid) === (child && child.pid ? child.pid : -1)) clearLock();
       child = null;
-      if (!stopping && cfg.autoRestart) {
-        console.log(`[dsh-pet-status] ${cfg.restartDelayMs}ms 后重拉桌宠`);
-        restartTimer = setTimeout(spawnPet, cfg.restartDelayMs);
+      if (stopping || userStopped) return;
+      if (!cfg.autoRestart) return;
+      if (clean) {
+        mode = 'exited';
+        return;
       }
+      console.log(`[dsh-pet-status] ${cfg.restartDelayMs}ms 后重拉桌宠`);
+      restartTimer = setTimeout(spawnPet, cfg.restartDelayMs);
     });
   };
 
@@ -321,6 +333,65 @@ export function startPetSupervisor(cfg, opts = {}) {
     },
     get owns() {
       return owns;
+    },
+    /** 用户是否主动停过（停过就不再自动拉起） */
+    get userStopped() {
+      return userStopped;
+    },
+    /**
+     * 主动停掉桌宠（不卸载插件）。
+     *
+     * <p>桌宠没进任务栏，用户手上没有「关掉它」的按钮，右键菜单的「退出」是唯一入口。
+     * 但插件这边也得有一手：否则「退出」之后 autoRestart 会把桌宠再拉回来。
+     *
+     * <p>停掉后 {@link #start()} 可以再拉起来。
+     */
+    stop() {
+      userStopped = true;
+      if (decisionTimer) {
+        clearTimeout(decisionTimer);
+        decisionTimer = null;
+      }
+      if (watchdog) {
+        clearInterval(watchdog);
+        watchdog = null;
+      }
+      if (restartTimer) {
+        clearTimeout(restartTimer);
+        restartTimer = null;
+      }
+      if (child) {
+        console.log(`[dsh-pet-status] 停掉桌宠进程（pid ${child.pid}）`);
+        try {
+          child.kill();
+        } catch (err) {
+          console.error('[dsh-pet-status] 停掉桌宠进程失败：', err && err.message);
+        }
+        child = null;
+      }
+      clearLock();
+      mode = 'stopped';
+      return { ok: true, mode };
+    },
+    /**
+     * 重新拉起桌宠（用户退出之后想让它回来时用）。
+     *
+     * <p>已经有桌宠连着（外部实例）就不重复拉 —— 还是那个「不能双开」的原则。
+     */
+    start() {
+      userStopped = false;
+      if (child) {
+        return { ok: true, mode, already: true, pid: child.pid };
+      }
+      if (petConnected()) {
+        mode = 'external';
+        console.log('[dsh-pet-status] 已有桌宠连着，不重复拉起');
+        return { ok: true, mode, external: true };
+      }
+      mode = 'spawned';
+      owns = true;
+      spawnPet();
+      return { ok: true, mode, pid: child ? child.pid : null };
     },
     /** 插件卸载 / DSH 关闭时收尾：只收「归我管」的桌宠 */
     dispose() {

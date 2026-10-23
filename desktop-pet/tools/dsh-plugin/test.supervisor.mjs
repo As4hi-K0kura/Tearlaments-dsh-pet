@@ -99,7 +99,69 @@ check('无配置 → 不托管', resolveLaunchConfig({}) === null);
   sup.dispose();
 }
 
-rmSync(fakeHome, { recursive: true, force: true });
+// ⑥ 退出语义：正常退出（code=0，用户主动退出）**不**重拉；异常退出才重拉
+{
+  const sup = startPetSupervisor(
+    { command: [process.execPath, '-e', 'process.exit(0)'], cwd: fakeHome, autoRestart: true, restartDelayMs: 200 },
+    { petConnected: () => false, graceMs: GRACE },
+  );
+  await sleep(GRACE + 1500);
+  check('正常退出(code=0) → 不自动拉起', sup.childPid === null && sup.mode === 'exited', `mode=${sup.mode} pid=${sup.childPid}`);
+  sup.dispose();
+}
+{
+  // 子进程每次起来就写一行标记再异常退出 —— 数标记行数就知道重拉了几次
+  // （不能直接看 childPid：秒退的子进程在采样瞬间正好落在重启间隙里，pid 恒为 null）
+  const marker = join(fakeHome, 'spawn-marker.txt');
+  const sup = startPetSupervisor(
+    {
+      command: [
+        process.execPath,
+        '-e',
+        `require('fs').appendFileSync(${JSON.stringify(marker)}, 'x'); process.exit(3);`,
+      ],
+      cwd: fakeHome,
+      autoRestart: true,
+      restartDelayMs: 200,
+    },
+    { petConnected: () => false, graceMs: GRACE },
+  );
+  await sleep(GRACE + 1500);
+  const marks = existsSync(marker) ? readFileSync(marker, 'utf8').length : 0;
+  check('异常退出(code!=0) → 自动重拉', marks >= 2, `重拉次数=${marks}`);
+  sup.dispose();
+  await sleep(400);
+}
+
+// ⑦ stop() / start()：用户主动停 → 不再自动拉；再 start() → 又拉起来
+{
+  const sup = startPetSupervisor(
+    { ...CFG, autoRestart: true, restartDelayMs: 200 },
+    { petConnected: () => false, graceMs: GRACE },
+  );
+  await sleep(GRACE + 500);
+  const first = sup.childPid;
+  check('已拉起桌宠', first !== null, `pid=${first}`);
+  sup.stop();
+  await sleep(500);
+  check('stop() → 进程已收掉', first === null || alive(first) === false, `pid=${first}`);
+  check('stop() → 标记为用户主动停', sup.userStopped === true);
+  check('stop() → 清掉锁文件', existsSync(LOCK) === false);
+  await sleep(600);
+  check('stop() 之后不会被自动重拉', sup.childPid === null, `pid=${sup.childPid}`);
+  sup.start();
+  await sleep(600);
+  check('start() → 又拉起一只', sup.childPid !== null && sup.childPid !== first, `pid=${sup.childPid}`);
+  sup.dispose();
+  await sleep(400);
+}
+
+// 清理：Windows 上刚被杀的子进程可能还占着句柄，rmSync 会 EPERM —— 重试几次，仍失败也不该让自测红掉
+try {
+  rmSync(fakeHome, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+} catch {
+  console.log('  WARN  临时目录清理失败（不影响断言结果）');
+}
 
 console.log(fails === 0 ? '\n全部通过' : `\n${fails} 项失败`);
 process.exit(fails === 0 ? 0 : 1);

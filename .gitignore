@@ -37,5 +37,9 @@ pipeline/dev/__pycache__/
 # 插件本机启动配置（含本机绝对路径，不入库）
 pet-launch.json
 
+# 任务栏图标：默认那张是第三方卡面素材，不适合再分发
+# 想换自己的图标 → 放一张 256×256 PNG 到 desktop-pet/src/main/resources/pet/taskbar-icon.png
+desktop-pet/src/main/resources/pet/taskbar-icon.png
+
 # 日志
 *.log

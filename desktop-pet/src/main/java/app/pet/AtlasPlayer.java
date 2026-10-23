@@ -6,7 +6,6 @@ import javafx.application.Platform;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.util.Duration;
 
 import java.io.InputStream;
 import java.util.EnumMap;
@@ -42,6 +41,28 @@ public final class AtlasPlayer {
     private int pendingFade;
     private int frame;
     private double accumulator;
+
+    /**
+     * 交叉淡入淡出（**由帧计时器统一驱动**，不用 {@link FadeTransition}）。
+     *
+     * <p>为什么不用 FadeTransition：它有两个致命毛病。
+     * <ol>
+     *   <li>切得快的时候，**两个过渡会同时改同一个节点的 opacity**（旧的淡入还没跑完，
+     *       新的淡出又开始），谁最后落地全看时序。</li>
+     *   <li>淡出的 {@code setOnFinished(ov -> ov.setVisible(false))} 会在**这个视图已经又被切回来**
+     *       之后才触发 —— 于是当前视图被藏掉，桌宠凭空消失，而且不会自己恢复。
+     *       DSH 档位在 tool/call 与 tool/result 之间来回跳时，几秒内就能触发。</li>
+     * </ol>
+     * 自己按帧算透明度就只有一个写者，不可能打架。
+     */
+    /** 正在显示（淡入中）的视图。 */
+    private ImageView showingView;
+    /** 正在淡出的视图（淡入结束后立刻藏掉）。 */
+    private ImageView fadingView;
+    /** 淡入进度 0~1。 */
+    private double fadeProgress = 1.0;
+    /** 本次淡入的总时长（毫秒）。 */
+    private int fadeDurationMs = 1;
     /** 本状态已播完的整轮数（用于驱动随机链）。 */
     private long loops;
     private long lastNanos;
@@ -217,32 +238,40 @@ public final class AtlasPlayer {
 
     private void doSwitch(PetState next, ImageView newView, int fadeMs) {
         pendingState = null;   // 本次切换已生效，旧的等待请求作废
-        ImageView oldView = current == null ? null : views.get(current);
-        newView.setVisible(true);
-        newView.toFront();
+        ImageView oldView = showingView;
+        // 上一轮淡出还没结束就又切：**直接把它收掉**（定格淡出），不要留两个过渡互相打架
+        if (fadingView != null) {
+            fadingView.setOpacity(0);
+            fadingView.setVisible(false);
+            fadingView = null;
+        }
+
+        showingView = newView;
         frame = 0;
         accumulator = 0;
+        newView.setVisible(true);
+        newView.toFront();
         applyFrame(newView, manifest.state(next), 0);
 
         if (fadeMs <= 0) {
             newView.setOpacity(1);
-            if (oldView != null) {
+            if (oldView != null && oldView != newView) {
                 oldView.setOpacity(0);
                 oldView.setVisible(false);
             }
+            fadeProgress = 1.0;
         } else {
-            // FadeTransition 没有 (Duration, Node, double) 构造器：先建再设终值，
-            // 起始值取节点当前透明度（默认 0，交叉淡入从 0 起）。
-            FadeTransition in = new FadeTransition(Duration.millis(fadeMs), newView);
-            in.setToValue(1.0);
-            if (oldView != null) {
-                FadeTransition out = new FadeTransition(Duration.millis(fadeMs), oldView);
-                out.setToValue(0.0);
-                ImageView ov = oldView;
-                out.setOnFinished(e -> ov.setVisible(false));
-                out.play();
+            newView.setOpacity(0);
+            if (oldView != null && oldView != newView) {
+                // 从旧视图**当前**的透明度接着淡出（可能上一轮淡出只走了一半）
+                oldView.setOpacity(Math.max(0.0, Math.min(1.0, oldView.getOpacity())));
+                oldView.toBack();
+                fadingView = oldView;
+            } else {
+                fadingView = null;
             }
-            in.play();
+            fadeProgress = 0.0;
+            fadeDurationMs = Math.max(1, fadeMs);
         }
         current = next;
     }
@@ -282,6 +311,19 @@ public final class AtlasPlayer {
                 lastNanos = now;
                 if (current == null) {
                     return;
+                }
+                // 交叉淡入淡出：唯一写者，按帧推进透明度
+                if (fadeProgress < 1.0 && showingView != null) {
+                    fadeProgress = Math.min(1.0, fadeProgress + dt * 1000.0 / fadeDurationMs);
+                    showingView.setOpacity(fadeProgress);
+                    if (fadingView != null) {
+                        fadingView.setOpacity(1.0 - fadeProgress);
+                        if (fadeProgress >= 1.0) {
+                            fadingView.setOpacity(0);
+                            fadingView.setVisible(false);
+                            fadingView = null;
+                        }
+                    }
                 }
                 PetManifest.StateDef d = manifest.state(current);
                 ImageView v = views.get(current);

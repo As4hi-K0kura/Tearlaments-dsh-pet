@@ -6,6 +6,9 @@ process.env.DSH_PET_STATUS_DISABLE_SUPERVISOR = '1';
 
 const PORT = Number(process.env.DSH_PET_STATUS_PORT || 3085);
 const BASE = `http://127.0.0.1:${PORT}`;
+// 插件读的是 DSH_PET_STATUS_PORT —— 不设的话它会去抢默认的 3080（真插件已经占着），
+// 自测就自己连到别的端口上去、报 ECONNREFUSED。必须**在 apply 之前**设好。
+process.env.DSH_PET_STATUS_PORT = String(PORT);
 const handlers = [];
 const cleanups = [];
 const ctx = {

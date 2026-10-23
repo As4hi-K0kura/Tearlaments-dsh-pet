@@ -13,6 +13,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.image.Image;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.transform.Scale;
@@ -74,8 +75,16 @@ public final class PetApp extends Application {
     private double scale = 0.0;
     /** 角色内容在画布坐标下的高度（各态内容并集高度的最大值）。 */
     private double contentHeight = 1.0;
-    /** 基准角色高度（逻辑像素）：启动时算好，体型菜单按它的倍率调整。 */
+    /**
+     * 基准角色高度（逻辑像素）：**启动时定死**，体型菜单按它的绝对倍率算。
+     *
+     * <p>必须和「当前高度」分开：菜单项写的是 {@code base * factor}，
+     * 如果这里存的是当前值，点一次「紧凑」就把基准污染成 0.72 倍，
+     * 后面点「标准」再也回不到原样（连点会连乘，越点越小）。
+     */
     private double baseDisplayHeight = 280.0;
+    /** 当前角色高度（逻辑像素）：体型菜单改的是它。 */
+    private double currentDisplayHeight = 280.0;
     /** 角色在屏幕上的目标高度（逻辑像素）；<=0 表示按屏幕自适应。 */
     private double displayHeight = 0.0;
     /** 拖拽期间暂存的 DSH 档位（交互结束后恢复）。 */
@@ -94,6 +103,10 @@ public final class PetApp extends Application {
     private double grabDY;
     /** 本次拖拽累计位移（用来区分「点击」和「拖动」）。 */
     private double dragDistance;
+    /** 本次拖拽是否已经打过一次「JavaFX 标志位」诊断（避免刷屏）。 */
+    private boolean dragDiagLogged;
+    /** 本次拖拽是否是**脚本化**的自测拖拽（没有真实鼠标按键，按键态判据要绕开）。 */
+    private boolean syntheticDrag;
 
     public static void main(String[] args) {
         launch(args);
@@ -159,6 +172,8 @@ public final class PetApp extends Application {
         } else {
             baseDisplayHeight = scale * contentHeight;
         }
+        // 当前高度 = 基准高度（体型菜单之后两者会分开）
+        currentDisplayHeight = baseDisplayHeight;
 
         canvas = new Group();
         // 关键：显式 Scale + pivot(0,0)。setScaleX/setScaleY 会绕包围盒中心缩放，把内容挤出窗口。
@@ -174,6 +189,7 @@ public final class PetApp extends Application {
 
         primaryStage.initStyle(StageStyle.TRANSPARENT);
         primaryStage.setTitle("mermaid-desktop-pet-" + System.nanoTime());
+        applyStageIcon(primaryStage);
         primaryStage.setScene(scene);
         primaryStage.setAlwaysOnTop(true);
         // 尺寸固定但保留可编程改大小（体型菜单要用），所以用 min=max 而不是 setResizable(false)
@@ -198,8 +214,17 @@ public final class PetApp extends Application {
         buildMenu();
         installMouseHandlers();
 
+        // 记住 show 之前的前台窗口：桌宠不该把用户的输入焦点抢走（用户可能正在打字）
+        com.sun.jna.platform.win32.WinDef.HWND prevForeground = Win32.getForegroundWindow();
         primaryStage.show();
         placeAtBottomRight(primaryStage);
+        // 进任务栏/抢焦点这些原生样式必须在 show 之后才有 HWND 可改。
+        // （JavaFX 没有公开的 setSkipTaskbar，只能走 Win32 的 WS_EX_TOOLWINDOW）
+        applyWindowStyle();
+        // 开局就把自己塞进置顶带：DSH 这类直绘窗口会盖过分层窗口，不主动声明就看不见
+        Win32.setAlwaysOnTop(Win32.findByTitle(stage.getTitle()));
+        Win32.setForegroundWindow(prevForeground);
+        startWindowStyleKeeper();
 
         String shot = param("shot");
         if (shot != null) {
@@ -325,6 +350,42 @@ public final class PetApp extends Application {
         machine.request(next, StateMachine.Trigger.CHAIN);
     }
 
+    // ---------------------------------------------------------------- 图标
+
+    /**
+     * 设置任务栏图标。
+     *
+     * <p>图标取自资源 {@code /pet/taskbar-icon.png}（256×256 PNG）。
+     * 仓库里**默认不带这个文件** —— 默认那张是第三方卡面素材，不适合再分发；
+     * 想换自己的图标，把一张 256×256 的 PNG 放到
+     * {@code desktop-pet/src/main/resources/pet/taskbar-icon.png} 即可。
+     * 没有这个文件时静默沿用 JavaFX 的默认图标，桌宠照常工作。
+     *
+     * <p>一个容易踩的点：任务栏上桌宠那一格认的**不是**我们这个
+     * {@code WS_EX_TOOLWINDOW} 的舞台窗口，而是 JavaFX 的 toolkit 窗口
+     * （{@code GlassToolkitWindowClass}）—— 之前那个灰蓝色机器人图标就是 toolkit 窗口的
+     * JavaFX 默认图标。给 stage 设了图标之后任务栏就跟着换了，靠的是 Windows 任务栏
+     * 「按进程分组、取组内窗口图标」的规则，不需要额外给 toolkit 窗口发 {@code WM_SETICON}。
+     */
+    private void applyStageIcon(Stage target) {
+        try (java.io.InputStream in = PetApp.class.getResourceAsStream("/pet/taskbar-icon.png")) {
+            if (in == null) {
+                System.out.println("[icon] 没有 /pet/taskbar-icon.png，沿用默认任务栏图标");
+                return;
+            }
+            Image img = new Image(in);
+            if (img.isError()) {
+                System.out.println("[icon] 图标解码失败：" + img.getException());
+                return;
+            }
+            target.getIcons().clear();
+            target.getIcons().add(img);
+            System.out.println("[icon] 任务栏图标已设置（taskbar-icon.png）");
+        } catch (Exception e) {
+            System.out.println("[icon] 设置任务栏图标失败：" + e);
+        }
+    }
+
     // ---------------------------------------------------------------- 交互
 
     private void installMouseHandlers() {
@@ -356,6 +417,26 @@ public final class PetApp extends Application {
         if (!dragging) {
             return;
         }
+        // 拖拽兜底：松手事件**有可能送不到**（鼠标在窗口外松开、系统菜单把鼠标抢走、
+        // 别的程序抢走输入）。收不到 release 就会一直卡在 dragging，桌宠跟着光标满屏漂。
+        //
+        // 判据用 Win32 的 GetAsyncKeyState(VK_LBUTTON) —— **不能用 MouseEvent.isStillSincePress()**：
+        // 本机上它对 MOUSE_DRAGGED 一律返回 false，于是拖拽刚起来（~25ms）就被这里判成
+        // 「主键已松开」直接 endDrag，表现为「只闪一下 dragging 动画就立刻切回别的动作」。
+        // JavaFX 侧的几个标志位在下面单独打一次，用于对账（每次拖拽只打一条）。
+        if (!dragDiagLogged) {
+            dragDiagLogged = true;
+            System.out.println("[drag] 首个 drag 事件：button=" + e.getButton()
+                    + " stillSincePress=" + e.isStillSincePress()
+                    + " primaryButtonDown=" + e.isPrimaryButtonDown()
+                    + " secondaryButtonDown=" + e.isSecondaryButtonDown()
+                    + " win32.leftDown=" + Win32.isLeftMouseDown());
+        }
+        if (!syntheticDrag && !Win32.isLeftMouseDown()) {
+            System.out.println("[drag] 检测到主键已松开但未收到 release，自动结束拖拽");
+            endDrag();
+            return;
+        }
         updateDrag(e.getScreenX(), e.getScreenY());
     }
 
@@ -368,8 +449,23 @@ public final class PetApp extends Application {
 
     /** 开始拖拽：记下抓取偏移，后续按「光标 − 偏移」刚体跟随。 */
     private void beginDrag(double screenX, double screenY) {
+        beginDrag(screenX, screenY, false);
+    }
+
+    /**
+     * 开始拖拽。
+     *
+     * @param synthetic true = 脚本化的拖拽自测（{@code --driftest} / {@code --dshdrag}），
+     *                  不是用户真的按着鼠标。这种拖拽**没有真实按键**，
+     *                  所以不能拿 {@code GetAsyncKeyState} 判「主键还按着吗」——
+     *                  否则看门狗会在 1 秒后把脚本化拖拽误判成「松手了」掐掉，
+     *                  连带把「拖拽期间档位更新被丢弃」这条断言冲掉。
+     */
+    private void beginDrag(double screenX, double screenY, boolean synthetic) {
         dragging = true;
         dragDistance = 0;
+        dragDiagLogged = false;
+        syntheticDrag = synthetic;
         // 刚体跟随：记下光标相对窗口左上角的偏移，之后每帧按「光标 − 偏移」算绝对位置。
         // 增量式（setX(getX()+delta)）会把任何状态切换位移/丢事件累积成漂移。
         grabDX = screenX - stage.getX();
@@ -388,6 +484,7 @@ public final class PetApp extends Application {
 
     private void endDrag() {
         dragging = false;
+        syntheticDrag = false;
         // 松手后回到「该回的状态」：DSH 进行中档位 → 恢复档位循环；否则回落待机。
         // 对齐 dsh-pet 的「拖拽松手：workStatus 非终态时恢复状态循环；否则播一遍待机」。
         resumeAfterInteraction();
@@ -435,7 +532,12 @@ public final class PetApp extends Application {
         menu.getItems().add(lock);
         menu.getItems().add(new SeparatorMenuItem());
         MenuItem quit = new MenuItem("退出");
-        quit.setOnAction(ev -> Platform.exit());
+        quit.setOnAction(ev -> {
+            // 「正常退出」= 退出码 0。插件的托管器据此区分「用户主动退出」和「崩了」：
+            // 前者不再拉起，后者才重拉。否则右键退出后桌宠会自己又冒出来。
+            System.out.println("[pet] 用户主动退出（正常退出，退出码 0）");
+            Platform.exit();
+        });
         menu.getItems().add(quit);
     }
 
@@ -443,15 +545,65 @@ public final class PetApp extends Application {
     private void addSizeItem(String label, double factor) {
         MenuItem item = new MenuItem(label);
         item.setOnAction(ev -> applyDisplayHeight(baseDisplayHeight * factor));
+        // 必须真的加进菜单：漏了这一行，体型三项会**静默消失**（菜单照常弹出，只是少三项）
+        menu.getItems().add(item);
     }
 
     private boolean clickThrough;
 
     private void applyClickThrough(boolean on) {
         clickThrough = on;
+        applyWindowStyle();
+    }
+
+    /**
+     * 应用 Win32 窗口样式：常驻不进任务栏/Alt-Tab、常驻不抢焦点，点击穿透按开关走。
+     *
+     * <p>必须走原生样式而不是只靠 {@code setSkipTaskbar}：后者只管任务栏，
+     * 而「点它不抢焦点」和「关掉穿透后图标不弹回来」都得改扩展样式。
+     */
+    private void applyWindowStyle() {
         com.sun.jna.platform.win32.WinDef.HWND hwnd =
                 Win32.findByTitle(stage.getTitle());
-        Win32.setClickThrough(hwnd, on);
+        Win32.applyWindowStyle(hwnd, clickThrough);
+    }
+
+    /**
+     * 「常驻桌面」的看门狗。
+     *
+     * <p>三件事，每秒一次：
+     * <ol>
+     *   <li><b>样式纠偏</b>：Windows 偶尔把扩展样式重置回去，
+     *       {@code WS_EX_TOOLWINDOW} 一掉，任务栏就重新冒出那个通用图标按钮。</li>
+     *   <li><b>置顶重申</b>：桌宠是 GDI 分层窗口，DSH 这类 Electron 应用是 DirectComposition
+     *       直绘窗口 —— DWM 合成时直绘表面盖过分层窗口，而且任何一次「别的窗口被激活/恢复」
+     *       都会把置顶带抢走，桌宠随即整个消失。所以必须真的调 {@code SetWindowPos(HWND_TOPMOST)}
+     *       把自己塞回置顶带，光有 {@code WS_EX_TOPMOST} 样式位是不够的。</li>
+     *   <li><b>拖拽兜底</b>：主键已经松开、但 release 事件没送达时，
+     *       桌宠会一直跟着光标漂。这里读系统层面的真实按键状态把它收回来。</li>
+     * </ol>
+     * 置顶重申只在「确实被压到前台窗口下面」时才做，避免无谓的 z-order 抖动。
+     */
+    private void startWindowStyleKeeper() {
+        Timeline t = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+            com.sun.jna.platform.win32.WinDef.HWND hwnd =
+                    Win32.findByTitle(stage.getTitle());
+            if (hwnd == null) {
+                return;
+            }
+            if (Win32.ensureWindowStyle(hwnd, clickThrough)) {
+                System.out.println("[win32] 窗口样式被系统改回，已重新设为「不进任务栏 / 不抢焦点」");
+            }
+            if (Win32.isBehindForeground(hwnd)) {
+                Win32.setAlwaysOnTop(hwnd);
+            }
+            if (dragging && !syntheticDrag && !Win32.isLeftMouseDown()) {
+                System.out.println("[drag] 主键已松开但未收到 release，看门狗自动结束拖拽");
+                endDrag();
+            }
+        }));
+        t.setCycleCount(Timeline.INDEFINITE);
+        t.play();
     }
 
     // ---------------------------------------------------------------- 尺寸与摆放
@@ -463,6 +615,7 @@ public final class PetApp extends Application {
         baseScale.setY(newScale);
         resizeStage(manifest.canvas.w * newScale, manifest.canvas.h * newScale);
         placeAtBottomRight(stage);
+        System.out.println("[size] 应用 scale=" + newScale + " 舞台=" + stage.getWidth() + "x" + stage.getHeight());
     }
 
     /**
@@ -482,7 +635,9 @@ public final class PetApp extends Application {
 
     /** 按「角色在屏幕上的高度」设置体型。 */
     private void applyDisplayHeight(double heightPx) {
-        baseDisplayHeight = heightPx;
+        currentDisplayHeight = heightPx;
+        System.out.println("[size] 体型切换：基准=" + baseDisplayHeight
+                + " 目标=" + heightPx + " scale=" + (heightPx / contentHeight));
         applyScale(heightPx / contentHeight);
     }
 
@@ -758,7 +913,7 @@ public final class PetApp extends Application {
         double baseX = pressX, baseY = pressY;
 
         System.out.printf("[drift] 起始态=%s 按下点=(%.1f,%.1f)%n", s0.id(), pressX, pressY);
-        beginDrag(pressX, pressY);
+        beginDrag(pressX, pressY, true);
         System.out.println("[drift] 按下后状态=" + player.current()
                 + " 命中测试=" + player.hitTest(s0, 0, f0[0], f0[1]));
 
@@ -816,7 +971,7 @@ public final class PetApp extends Application {
             double[] f = manifest.state(s0).faceCenter;
             double px = stage.getX() + f[0] * scale;
             double py = stage.getY() + f[1] * scale;
-            beginDrag(px, py);
+            beginDrag(px, py, true);
             System.out.println("[probe] DRAG-START 状态=" + player.current().id());
             Timeline t3 = new Timeline(new KeyFrame(Duration.seconds(3), e3 -> {
                 endDrag();

@@ -21,13 +21,19 @@ import urllib.request
 
 # 路径：默认相对仓库根，环境变量可覆盖（PET_JDK / PET_LIB / PET_CLASSES / PET_MOCK / PET_OUT / PET_ERR）
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-JDK = os.environ.get("PET_JDK", r"D:\tmp\tools\jdk\jdk-21.0.12.1+1")
-LIB = os.environ.get("PET_LIB", r"D:\tmp\tools\lib")
+# JDK / LIB 没有可用的仓库内默认值 —— 必须显式给（便携 JDK 目录、javafx+gson+jna 的 jar 目录）
+JDK = os.environ.get("PET_JDK", "")
+LIB = os.environ.get("PET_LIB", "")
 CLASSES = os.environ.get("PET_CLASSES", os.path.join(ROOT, "desktop-pet", "target", "classes"))
 MOCK = os.environ.get("PET_MOCK", os.path.join(ROOT, "scripts", "mock_dsh.py"))
 PORT = int(os.environ.get("PET_PORT", "3099"))
 OUT = os.environ.get("PET_OUT", os.path.join(ROOT, "work", "pet-dsh.log"))
 ERR = os.environ.get("PET_ERR", os.path.join(ROOT, "work", "pet-dsh.err"))
+if not JDK or not LIB:
+    print("需要先设 PET_JDK（便携 JDK 21 目录）和 PET_LIB（javafx/gson/jna 的 jar 目录），例如：")
+    print("  set PET_JDK=C:\\path\\to\\jdk-21")
+    print("  set PET_LIB=C:\\path\\to\\lib")
+    sys.exit(2)
 
 os.makedirs(os.path.join(ROOT, 'work'), exist_ok=True)
 
@@ -85,7 +91,7 @@ def drag_probe():
     cp = ";".join([CLASSES] + [os.path.join(LIB, n) for n in os.listdir(LIB)
                                if n.endswith(".jar")
                                and not re.match(r"^javafx-(base|graphics|controls)-21\.0\.4\.jar$", n)])
-    out2 = r"D:\tmp\tools\pet-dsh-drag.log"
+    out2 = os.environ.get("PET_DRAG_LOG", os.path.join(ROOT, "work", "pet-dsh-drag.log"))
     open(out2, "w", encoding="utf-8").close()
     p = subprocess.Popen(
         [os.path.join(JDK, "bin", "java.exe"), "-Dstdout.encoding=UTF-8", "-Dfile.encoding=UTF-8",
@@ -146,7 +152,9 @@ def main():
     py = sys.executable
     # 1) mock 宿主
     mock = subprocess.Popen([py, MOCK, str(PORT)],
-                            stdout=open(r"D:\tmp\tools\mock_dsh.log", "w", encoding="utf-8"),
+                            stdout=open(os.environ.get("PET_MOCK_LOG",
+                                                     os.path.join(ROOT, "work", "mock_dsh.log")),
+                                        "w", encoding="utf-8"),
                             stderr=subprocess.STDOUT)
     time.sleep(1.5)
 
