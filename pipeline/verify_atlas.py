@@ -27,6 +27,26 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+# Windows 控制台编码坑：中文 Windows 是 GBK，英文 Windows 是 cp1252，
+# 而本脚本会打印中文表格 + ✅/⚠️ 这类 emoji —— 两者都可能被当前编码表示不了，
+# 在**跑完八态之后**抛 UnicodeEncodeError，白跑一遍。
+# 处理：先看当前编码能不能表示中文；不能就切 UTF-8（现代终端都能显示），
+# 并统一放宽 errors，保证「只降级、不崩」。
+def _make_stdout_safe():
+    enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+    try:
+        "中文".encode(enc)
+    except Exception:
+        enc = "utf-8"
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding=enc, errors="replace")
+        except Exception:  # pragma: no cover - 老版本 Python / 非标准流
+            pass
+
+
+_make_stdout_safe()
+
 sys.path.insert(0, str(Path(__file__).parent))
 from build_atlas import face_bbox_windowed  # noqa: E402
 

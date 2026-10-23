@@ -1,7 +1,7 @@
 {
   "name": "dsh-pet-status",
   "version": "1.0.0",
-  "description": "把 DSH 的会话事件聚合成桌宠用的「工作状态档位」，并按 dsh-pet 契约对外提供本地 HTTP 接口（thinking / working / waiting / result / success / error）。",
+  "description": "桌宠的「档位宿主 + 进程宿主」：在 DSH 宿主进程内把会话事件聚合成工作状态档位（thinking / working / waiting / result / success / error），按 dsh-pet 契约对外提供本地 HTTP 接口，并托管桌宠进程（装上即自动拉起，卸载即自动收掉）。",
   "icon": "assets/icon.svg",
   "keywords": [
     "dsh",
@@ -19,6 +19,7 @@
     ".": {
       "default": "./index.js"
     },
+    "./pet-supervisor.js": "./pet-supervisor.js",
     "./package.json": "./package.json",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./locale/*": "./locale/*",
@@ -26,16 +27,19 @@
   },
   "files": [
     "index.js",
+    "pet-supervisor.js",
     "cordis.patch.yml",
     "assets",
     "locale",
+    "pet-launch.example.json",
     "test.plugin.mjs",
+    "test.supervisor.mjs",
     "install.bat",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "test": "node test.plugin.mjs"
+    "test": "node test.plugin.mjs && node test.supervisor.mjs"
   },
   "engines": {
     "node": ">=22.12.0",

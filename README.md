@@ -84,7 +84,56 @@ $env:ELECTRON_RUN_AS_NODE='1'; $env:DSH_HOME="$env:USERPROFILE\.dsh"
 
 插件细节（接口、档位表、卸载、自测）见 [`desktop-pet/tools/dsh-plugin/README.md`](desktop-pet/tools/dsh-plugin/README.md)。
 
-### 3) 接入
+### 3) 让插件托管桌宠（自动拉起 / 自动收掉）
+
+插件同时兼任桌宠的**进程宿主**：
+
+- **装上插件** → 桌宠自动拉起并接上 3080；
+- **卸载插件** → 桌宠自动收掉，不留孤儿进程；
+- **桌宠崩了** → 按退避自动重拉。
+
+做法是复制一份启动配置：把 `desktop-pet/tools/dsh-plugin/pet-launch.example.json` 复制成
+`pet-launch.json`（**不要提交**，已在 `.gitignore` 里），按本机实际路径改：
+
+```json
+{
+  "command": [
+    "C:/path/to/jdk-21/bin/java.exe",
+    "-Dstdout.encoding=UTF-8",
+    "--module-path",
+    "C:/path/to/javafx-base-21.0.4-win.jar;C:/path/to/javafx-graphics-21.0.4-win.jar;C:/path/to/javafx-controls-21.0.4-win.jar",
+    "--add-modules",
+    "javafx.controls",
+    "-cp",
+    "C:/path/to/desktop-pet/target/classes;C:/path/to/gson-2.11.0.jar;C:/path/to/jna-5.14.0.jar;C:/path/to/jna-platform-5.14.0.jar",
+    "app.pet.PetApp",
+    "--dsh"
+  ],
+  "cwd": "C:/path/to/desktop-pet",
+  "autoRestart": true,
+  "restartDelayMs": 3000
+}
+```
+
+`command` 是**数组**（每个元素一个参数），子进程直接按数组 spawn，不走 shell。
+
+不想托管就把环境变量 `DSH_PET_STATUS_DISABLE_SUPERVISOR=1` 设上，插件只保留「报档位」。
+
+三种运行模式（`/debug` 里能实时看到）：
+
+| 模式 | 触发条件 | 对桌宠生死的态度 |
+| --- | --- | --- |
+| `adopted` | 锁文件里的 pid 还活着（典型：插件热重载后旧进程遗留） | 接管，不重复拉 |
+| `external` | 宽限期 5s 内发现有活连接 | 不碰，只用看门狗盯着 |
+| `spawned` | 宽限期 5s 内没有任何活连接 | 自己拉起，并负责收尾 |
+
+诊断：
+
+```bash
+curl http://127.0.0.1:3080/dsh-pet-7340/debug
+```
+
+### 4) 接入
 
 ```bash
 java ... app.pet.PetApp --dsh
@@ -109,7 +158,12 @@ java ... app.pet.PetApp --dsh
 │  │  ├─ DshBridge.java           #   档位桥接、端口发现
 │  │  └─ Win32.java               #   点击穿透 / 置顶
 │  ├─ src/main/resources/pet/     # 构建期产物：8 个图集 + manifest
-│  └─ tools/dsh-plugin/           # DSH 插件（可独立安装）
+│  └─ tools/
+│     ├─ start_pet_with_dsh.bat    # 一键启动（便携 JDK 版）
+│     └─ dsh-plugin/              # DSH 插件（可独立安装）
+│        ├─ index.js              #   档位聚合 + HTTP 服务 + 托管接线
+│        ├─ pet-supervisor.js     #   进程托管（拉起 / 接管 / 收尾）
+│        └─ pet-launch.example.json
 ├─ pipeline/                       # 构建管线（从源视频重建图集）
 │  ├─ states.json                 # 八态优先级与转场表的事实来源
 │  ├─ build_atlas.py              # 归一化 → 图集打包 → manifest
@@ -209,6 +263,9 @@ PET_SRC_ALPHA=/path/to/alpha-webm python pipeline/build_atlas.py
 5. **DSH 的档位优先级在宿主侧合并** —— 客户端只跟随，别二次仲裁（见上）。
 6. **DSH 桌面版 webServer 有「浏览器访问」闸门** —— 关闭时对**任何**路径都回 403，跨进程客户端读不到，所以插件自起 127.0.0.1 端口。
 7. **运行期挂载的插件监听 `session/event` 要加 `{ global: true }`** —— Cordis 按隔离作用域过滤监听器，否则会「插件在跑但收不到事件」。
+8. **判「桌宠还活着吗」要用活连接，不能用时间戳** —— 时间戳分不清「18 秒前还活着」和「18 秒前就已经死了」，宽限期一过就会误拉一只。
+9. **插件热重载会让模块级变量归零** —— 「最近见过桌宠」这种记忆放内存里，重载后就会双开；归属要落盘（`~/.dsh-pet/pet.lock.json`），且换手时改写 owner，旧实例才不会误杀桌宠。
+10. **Windows 上 PowerShell `Set-Content -Encoding UTF8` 会写 BOM** —— 插件读 JSON 直接 `JSON.parse` 会抛，配置解析失败必须打日志，不能静默。
 
 完整记录见 [`docs/设计说明.md`](docs/设计说明.md)。
 
@@ -242,6 +299,10 @@ the agent's live work status.
   aggregates the session events into work-status tiers, and serves them over the local
   `dsh-pet` contract. Install it straight from DSH: *Plugins → Add plugin → local directory path*.
   No DSH restart needed.
+- **Process supervision**: the plugin also owns the pet process — the pet is launched when the
+  plugin is installed, shut down when the plugin is removed, and restarted if it crashes.
+  Configure it with `desktop-pet/tools/dsh-plugin/pet-launch.json` (see `pet-launch.example.json`).
+  Liveness is judged by *live connections* (pending `/state` long polls), never by timestamps.
 
 ```
 desktop-pet/   JavaFX runtime + DSH plugin

@@ -34,5 +34,8 @@ pipeline/dev/__pycache__/
 # 插件打包产物
 *.tgz
 
+# 插件本机启动配置（含本机绝对路径，不入库）
+pet-launch.json
+
 # 日志
 *.log

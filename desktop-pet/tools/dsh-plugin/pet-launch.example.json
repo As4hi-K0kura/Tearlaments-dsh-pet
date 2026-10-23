@@ -1,0 +1,23 @@
+{
+  "_comment": [
+    "桌宠启动配置样例。复制成 pet-launch.json 后按本机实际路径改。",
+    "插件会在装载时读它：装上插件 → 桌宠自动出现；插件卸载 → 桌宠自动收掉。",
+    "命令行是一个数组（每个元素一个参数），不要自己加引号——子进程直接按数组 spawn，不走 shell。",
+    "Windows 上路径里的分号（classpath / module-path 分隔符）是字面量，照写即可。"
+  ],
+  "command": [
+    "C:/path/to/jdk-21/bin/java.exe",
+    "-Dstdout.encoding=UTF-8",
+    "--module-path",
+    "C:/path/to/javafx-base-21.0.4-win.jar;C:/path/to/javafx-graphics-21.0.4-win.jar;C:/path/to/javafx-controls-21.0.4-win.jar",
+    "--add-modules",
+    "javafx.controls",
+    "-cp",
+    "C:/path/to/desktop-pet/target/classes;C:/path/to/gson-2.11.0.jar;C:/path/to/jna-5.14.0.jar;C:/path/to/jna-platform-5.14.0.jar",
+    "app.pet.PetApp",
+    "--dsh"
+  ],
+  "cwd": "C:/path/to/desktop-pet",
+  "autoRestart": true,
+  "restartDelayMs": 3000
+}

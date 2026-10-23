@@ -1,5 +1,8 @@
-﻿// 用假的 ctx 验证插件逻辑（不依赖 DSH 宿主）
-import { apply } from '../dsh-plugin/index.js';
+// 用假的 ctx 验证插件逻辑（不依赖 DSH 宿主）
+import { apply } from './index.js';
+
+// 自测不托管桌宠进程：假 ctx 里没有真宿主，起真桌宠会干扰断言
+process.env.DSH_PET_STATUS_DISABLE_SUPERVISOR = '1';
 
 const PORT = Number(process.env.DSH_PET_STATUS_PORT || 3085);
 const BASE = `http://127.0.0.1:${PORT}`;

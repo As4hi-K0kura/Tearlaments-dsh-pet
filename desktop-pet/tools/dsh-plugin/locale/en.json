@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Pet Work Status",
-    "description": "Aggregates DSH session events into desktop-pet work-status tiers and serves them over a local HTTP contract."
+    "title": "Pet Work Status (status host)",
+    "description": "Aggregates DSH session events into work-status tiers (thinking / working / waiting / result / success / error) and serves them on the local dsh-pet contract. It also supervises the pet process: the pet is launched when the plugin is installed and shut down when the plugin is removed."
   }
 }

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "桌宠工作状态",
-    "description": "把 DSH 的会话事件聚合成桌宠用的工作状态档位，并按 dsh-pet 契约对外提供本地 HTTP 接口。"
+    "title": "桌宠工作状态（档位宿主）",
+    "description": "在 DSH 宿主进程内聚合会话事件，向桌宠提供工作状态档位（thinking / working / waiting / result / success / error），并托管桌宠进程：装上插件即自动拉起，卸载插件即自动收掉。"
   }
 }

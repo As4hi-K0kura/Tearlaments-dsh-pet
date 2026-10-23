@@ -16,6 +16,7 @@
  *   本插件自起一个仅监听 127.0.0.1 的端口（默认 3080，被占则顺延），不受该闸门影响。
  */
 import { createServer } from 'node:http';
+import { notePetSeen, petSeenAgeMs, resolveLaunchConfig, startPetSupervisor } from './pet-supervisor.js';
 
 const ROUTE = '/dsh-pet-7340';
 const DEFAULT_PORT = 3080;
@@ -84,7 +85,11 @@ export function apply(ctx) {
   /** 渲染端上报的实况（内存快照，不写 /state） */
   const poses = [];
   /** 诊断：收到的事件总数与首个事件的形状（/debug 里可见） */
-  const diag = { events: 0, firstEvent: null };
+  const diag = { events: 0, firstEvent: null, supervisor: { mode: 'pending', source: null, childPid: null } };
+  /** 此刻挂着的 /state 长轮询数量（> 0 表示有桌宠正连着） */
+  let openStateRequests = 0;
+  /** 托管器实例（/debug 里实时读它的状态） */
+  let supervisorRef = null;
 
   function nextCounter() {
     // 严格递增：Date.now() 与「上一个 +1」取大（同一毫秒连写两次也不重复）
@@ -212,6 +217,19 @@ export function apply(ctx) {
       const sub = path.slice(ROUTE.length) || '/';
 
       if (sub === '/state' && req.method === 'GET') {
+        // 只有渲染端（桌宠）会打 /state → 记一笔「桌宠还活着」
+        notePetSeen();
+        // 活连接计数：长轮询期间这个请求是**挂着的**，所以计数 > 0 就是「此刻有桌宠连着」。
+        // 比时间戳可靠：时间戳分不清「18 秒前活着」和「18 秒前死了」。
+        openStateRequests += 1;
+        let released = false;
+        const release = () => {
+          if (released) return;
+          released = true;
+          openStateRequests -= 1;
+        };
+        res.on('close', release);
+        res.on('finish', release);
         const sinceRaw = url.searchParams.get('since');
         const timeoutRaw = url.searchParams.get('timeout');
         if ((sinceRaw === null) !== (timeoutRaw === null)) {
@@ -309,8 +327,29 @@ export function apply(ctx) {
       }
 
       if (sub === '/debug' && req.method === 'GET') {
+        const seenAge = petSeenAgeMs();
         res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({ sessions: Object.fromEntries(sessions), poses, diag, state: snapshot() }, null, 2));
+        res.end(JSON.stringify({
+          sessions: Object.fromEntries(sessions),
+          poses,
+          diag: {
+            ...diag,
+            petSeenAgeMs: Number.isFinite(seenAge) ? seenAge : null,
+            openStateRequests,
+            // 实时读托管器状态（mode 会随宽限期/看门狗变化，不能用挂载时的快照）
+            supervisor: supervisorRef
+              ? {
+                  mode: supervisorRef.mode,
+                  source: diag.supervisor.source,
+                  childPid: supervisorRef.childPid,
+                  owns: supervisorRef.owns,
+                  command: diag.supervisor.command,
+                  autoRestart: diag.supervisor.autoRestart,
+                }
+              : diag.supervisor,
+          },
+          state: snapshot(),
+        }, null, 2));
         return;
       }
 
@@ -342,6 +381,43 @@ export function apply(ctx) {
       for (const w of Array.from(waiters)) w();
       waiters.clear();
       if (server) server.close();
+    };
+  });
+
+  // ③ 桌宠进程托管：插件兼任桌宠的「进程宿主」
+  //
+  // 以前要手动起两样东西（插件 + JavaFX 桌宠），这里把桌宠也收进插件的生命周期：
+  // 插件装载 → 拉起桌宠；插件卸载 / DSH 关闭 → 收掉桌宠；桌宠崩了 → 按退避重拉。
+  //
+  // 启动配置来源（按优先级）：
+  //   1) cordis patch 的 `config.launch`（DSH 原生配置）
+  //   2) 插件目录下的 `pet-launch.json`（用户本地文件，最常用）
+  //   3) 环境变量 `DSH_PET_LAUNCH`（JSON 或整条命令）
+  // 一个都没有 → 只当「档位宿主」，不托管进程（保持向后兼容）。
+  ctx.effect(() => {
+    const cfg = resolveLaunchConfig(ctx);
+    if (!cfg) {
+      console.log('[dsh-pet-status] 未配置桌宠启动命令（pet-launch.json / config.launch / DSH_PET_LAUNCH），只提供档位');
+      diag.supervisor = { mode: 'disabled', source: null, childPid: null };
+      return () => {};
+    }
+    const supervisor = startPetSupervisor(cfg, {
+      petConnected: () => openStateRequests > 0,
+      petSeenAgeMs,
+    });
+    supervisorRef = supervisor;
+    diag.supervisor = {
+      mode: supervisor.mode,
+      source: cfg.source,
+      childPid: supervisor.childPid,
+      command: cfg.command.join(' '),
+      autoRestart: cfg.autoRestart,
+    };
+    console.log(`[dsh-pet-status] 桌宠托管已启用（配置来源：${cfg.source}，模式：${supervisor.mode}）`);
+    return () => {
+      supervisor.dispose();
+      supervisorRef = null;
+      diag.supervisor = { mode: 'disposed', source: cfg.source, childPid: null };
     };
   });
 }
