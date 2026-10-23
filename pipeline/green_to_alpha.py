@@ -36,7 +36,7 @@ import sys
 import numpy as np
 from PIL import Image
 
-FF = r"C:\Users\KSO\AppData\Local\Programs\Python\Python312\Lib\site-packages\imageio_ffmpeg\binaries\ffmpeg-win-x86_64-v7.1.exe"
+FF = _paths.ffmpeg_bin()
 T_HI = 50.0      # 与背景色的最大通道差超过此值 -> 可能是前景
 T_SEED = 12.0    # 绿 excess(G - max(R,B)) 高于此值 -> 判为"绿染像素"，不作种子
 SOLID_USE_FG = True  # 实心区用传播色（干净）而不是观测色

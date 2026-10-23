@@ -14,7 +14,7 @@ import subprocess
 
 from PIL import Image, ImageDraw, ImageFont
 
-FF = r"C:\Users\KSO\AppData\Local\Programs\Python\Python312\Lib\site-packages\imageio_ffmpeg\binaries\ffmpeg-win-x86_64-v7.1.exe"
+FF = _paths.ffmpeg_bin()
 SRC = str(_paths.VID_ALPHA)
 OUT = str(_paths.DELIV / "预览-八态-透明版.png")
 WORK = str(_paths.TMP_VERIFY / "preview")

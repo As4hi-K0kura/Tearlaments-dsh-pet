@@ -9,6 +9,7 @@
     PET_SRC_ALPHA=/path/to/alpha-webm python pipeline/build_atlas.py
 """
 import os
+import shutil
 from pathlib import Path
 
 # 仓库根（pipeline/ 的上一级）
@@ -45,3 +46,32 @@ FRAMES_DIAG = _p("PET_FRAMES_DIAG", "work/frames-diag")
 LEDGER = _p("PET_LEDGER", "work/video-deliverables.json")
 LEDGER_ALPHA = _p("PET_LEDGER_ALPHA", "work/video-deliverables-alpha.json")
 LEDGER_V3 = _p("PET_LEDGER_V3", "work/video-deliverables-v3.json")
+
+
+def ffmpeg_bin():
+    """定位 ffmpeg 可执行文件。
+
+    优先级：环境变量 FFMPEG_BIN → imageio-ffmpeg 自带的二进制 → PATH 上的 ffmpeg。
+    **不要把某个人的绝对路径写死在这里** —— 公开仓库里那样会在别人机器上直接崩。
+    """
+    env = os.environ.get("FFMPEG_BIN")
+    if env:
+        p = Path(env).expanduser()
+        if p.exists():
+            return str(p)
+        raise FileNotFoundError(f"FFMPEG_BIN 指向的路径不存在：{p}")
+    try:
+        import imageio_ffmpeg
+
+        exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if exe and Path(exe).exists():
+            return exe
+    except Exception:
+        pass
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    raise FileNotFoundError(
+        "找不到 ffmpeg：pip install imageio-ffmpeg，或把 ffmpeg 放进 PATH，"
+        "或用环境变量 FFMPEG_BIN 指定可执行文件路径"
+    )

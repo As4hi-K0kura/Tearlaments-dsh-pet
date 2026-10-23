@@ -13,11 +13,13 @@
 
 1. 打开 DSH → 左侧边栏 **「插件」**
 2. 点 **「添加插件」**
-3. 在 **「包名或地址」** 输入框里填本插件目录的**绝对路径**：
+3. 在 **「包名或地址」** 输入框里填本插件目录的**绝对路径**（DSH 不接受相对路径）：
 
    ```
-   desktop-pet/tools/dsh-plugin
+   <本仓库的绝对路径>\desktop-pet\tools\dsh-plugin
    ```
+
+   例如仓库克隆在 `D:\code\Tearlaments-dsh-pet` 时填 `D:\code\Tearlaments-dsh-pet\desktop-pet\tools\dsh-plugin`。
 
 4. 确认安装。DSH 会执行 `pnpm add <路径>`，把本包登记成 profile 的组合包并挂进配置树。
 

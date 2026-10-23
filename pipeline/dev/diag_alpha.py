@@ -14,7 +14,7 @@ import subprocess
 import numpy as np
 from PIL import Image
 
-FF = r"C:\Users\KSO\AppData\Local\Programs\Python\Python312\Lib\site-packages\imageio_ffmpeg\binaries\ffmpeg-win-x86_64-v7.1.exe"
+FF = _paths.ffmpeg_bin()
 TMP = str(_paths.TMP_FMT)
 REF = os.path.join(TMP, "t_apng.apng_rgba")
 SRC_FRAMES = os.path.join(TMP, "clip24_frames")

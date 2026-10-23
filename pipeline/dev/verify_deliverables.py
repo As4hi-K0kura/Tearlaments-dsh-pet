@@ -11,7 +11,7 @@ import re
 import subprocess
 import io
 
-FF = r"C:\Users\KSO\AppData\Local\Programs\Python\Python312\Lib\site-packages\imageio_ffmpeg\binaries\ffmpeg-win-x86_64-v7.1.exe"
+FF = _paths.ffmpeg_bin()
 DELIV = str(_paths.DELIV)
 LIST = os.path.join(DELIV, "清单.md")
 FINAL = str(_paths.VID_FINAL)
